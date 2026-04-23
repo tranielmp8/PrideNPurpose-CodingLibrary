@@ -89,7 +89,7 @@
 		</div>
 
 		<div
-			class="mx-auto mt-20 max-w-2xl overflow-hidden rounded-2xl border border-[#252525] shadow-2xl shadow-black/60"
+			class="mx-auto mt-20 max-w-2xl overflow-hidden rounded-2xl border-2 border-[#ff5a36] shadow-2xl shadow-black/60"
 		>
 			<img
 				src={codingLibraryImage}
