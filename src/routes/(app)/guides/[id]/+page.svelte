@@ -85,10 +85,10 @@
 <div class="flex h-full overflow-hidden">
 
 	<!-- ── File Tree Panel ──────────────────────────────────── -->
-	<div class="flex w-64 shrink-0 flex-col border-r border-gray-200 bg-white dark:border-[#1e1e1e] dark:bg-[#111111]">
+	<div class="flex w-72 shrink-0 flex-col border-r border-gray-200 bg-white dark:border-[#1e1e1e] dark:bg-[#111111]">
 		<!-- Tree header -->
 		<div class="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-[#1e1e1e]">
-			<span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Files</span>
+			<span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Folders + Files</span>
 			<div class="flex gap-1">
 				<button
 					title="Add file at root"
