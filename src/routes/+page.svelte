@@ -1,4 +1,6 @@
 <script lang="ts">
+	import codingLibraryImage from '$lib/assets/codingLibrary.png';
+
 	const features = [
 		{
 			icon: '📂',
@@ -34,7 +36,6 @@
 </script>
 
 <div class="min-h-screen bg-[#0d0d0d] text-white">
-	<!-- Nav -->
 	<nav class="flex items-center justify-between border-b border-[#252525]/60 px-8 py-5">
 		<div class="flex items-center gap-2">
 			<span class="text-2xl">📚</span>
@@ -53,7 +54,6 @@
 		</div>
 	</nav>
 
-	<!-- Hero -->
 	<main class="mx-auto max-w-6xl px-8 py-28 text-center">
 		<div
 			class="mb-8 inline-flex items-center gap-2 rounded-full border border-orange-800/60 bg-orange-950/60 px-4 py-1.5 text-sm text-orange-300"
@@ -88,45 +88,17 @@
 			</a>
 		</div>
 
-		<!-- Editor preview -->
 		<div
-			class="mx-auto mt-20 max-w-4xl overflow-hidden rounded-2xl border border-[#252525] shadow-2xl shadow-black/60"
+			class="mx-auto mt-20 max-w-2xl overflow-hidden rounded-2xl border border-[#252525] shadow-2xl shadow-black/60"
 		>
-			<div
-				class="flex items-center gap-2 border-b border-[#252525] bg-[#0d0d0d] px-5 py-3"
-			>
-				<div class="h-3 w-3 rounded-full bg-red-500/60"></div>
-				<div class="h-3 w-3 rounded-full bg-yellow-500/60"></div>
-				<div class="h-3 w-3 rounded-full bg-green-500/60"></div>
-				<span class="ml-3 font-mono text-sm text-slate-500">
-					Rust › Ownership › Borrow Checker Basics
-				</span>
-			</div>
-			<div class="bg-[#181818] p-8 text-left">
-				<div class="mb-1 font-sans text-2xl font-bold text-white">Rust Ownership</div>
-				<div class="mb-6 text-slate-400">
-					Ownership is Rust's system for managing memory safely.
-				</div>
-				<div class="mb-4 rounded-lg bg-[#1e1e1e] p-4">
-					<div class="mb-2 font-semibold text-orange-400">▾ Core Rules</div>
-					<div class="space-y-1 pl-4 font-mono text-sm text-slate-300">
-						<div>• Each value has one owner</div>
-						<div>• Only one mutable reference at a time</div>
-						<div>• References must always be valid</div>
-					</div>
-				</div>
-				<div class="rounded-lg border border-[#2d2d2d] bg-[#1e1e1e] p-4">
-					<div class="mb-2 font-mono text-xs text-green-400">rust</div>
-					<div class="font-mono text-sm text-cyan-300">
-						let s = String::from(<span class="text-yellow-300">"hello"</span>);
-					</div>
-					<div class="font-mono text-sm text-cyan-300">takes_ownership(s);</div>
-				</div>
-			</div>
+			<img
+				src={codingLibraryImage}
+				alt="CodingLibrary application preview"
+				class="block w-full bg-[#181818] object-cover"
+			/>
 		</div>
 	</main>
 
-	<!-- Features -->
 	<section id="features" class="mx-auto max-w-6xl px-8 py-24">
 		<h2 class="mb-4 text-center text-4xl font-bold">Everything you need to learn deeply</h2>
 		<p class="mb-16 text-center text-lg text-slate-400">
@@ -146,7 +118,6 @@
 		</div>
 	</section>
 
-	<!-- CTA -->
 	<section class="border-t border-[#252525] py-24 text-center">
 		<h2 class="mb-4 text-4xl font-bold">Start building your coding brain.</h2>
 		<p class="mb-8 text-lg text-slate-400">
