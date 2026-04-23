@@ -31,7 +31,9 @@
 	const tree = $derived(buildTree(data.nodes));
 
 	let selectedNodeId = $state<string | null>(null);
-	let expandedDirs = $state(new Set(data.nodes.filter((n) => n.type === 'directory').map((n) => n.id)));
+	let expandedDirs = $state<Record<string, boolean>>(
+		Object.fromEntries(data.nodes.filter((n) => n.type === 'directory').map((n) => [n.id, true]))
+	);
 	let editingNode = $state(false);
 	let addingTo = $state<string | null | undefined>(undefined); // undefined = not adding, null = root
 	let addingType = $state<'file' | 'directory'>('file');
@@ -113,8 +115,8 @@
 					>
 						{#if node.type === 'directory'}
 							<button
-								onclick={() => expandedDirs.has(node.id) ? expandedDirs.delete(node.id) : expandedDirs.add(node.id)}
-								class="shrink-0 text-xs text-slate-400 transition-transform {expandedDirs.has(node.id) ? 'rotate-90' : ''}"
+								onclick={() => expandedDirs[node.id] = !expandedDirs[node.id]}
+								class="shrink-0 text-xs text-slate-400 transition-transform {expandedDirs[node.id] ? 'rotate-90' : ''}"
 							>▶</button>
 						{:else}
 							<span class="w-3 shrink-0"></span>
@@ -132,9 +134,14 @@
 						{#if node.type === 'directory'}
 							<button
 								title="Add file here"
-								onclick={(e) => { e.stopPropagation(); addingTo = node.id; addingType = 'file'; expandedDirs.add(node.id); }}
+								onclick={(e) => { e.stopPropagation(); addingTo = node.id; addingType = 'file'; expandedDirs[node.id] = true; }}
 								class="shrink-0 rounded p-0.5 text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-orange-500"
-							>+</button>
+							>📄+</button>
+							<button
+								title="Add directory here"
+								onclick={(e) => { e.stopPropagation(); addingTo = node.id; addingType = 'directory'; expandedDirs[node.id] = true; }}
+								class="shrink-0 rounded p-0.5 text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-orange-500"
+							>📁+</button>
 						{/if}
 						<button
 							title="Delete"
@@ -168,7 +175,7 @@
 					{/if}
 
 					<!-- Children -->
-					{#if node.type === 'directory' && expandedDirs.has(node.id)}
+					{#if node.type === 'directory' && expandedDirs[node.id]}
 						{#each node.children as child}
 							{@render treeNode(child, depth + 1)}
 						{/each}

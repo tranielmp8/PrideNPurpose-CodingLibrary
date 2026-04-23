@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { common, createLowlight } from 'lowlight';
 	import { toHtml } from 'hast-util-to-html';
 
@@ -7,8 +6,9 @@
 	let html = $state('');
 	let copied = $state(false);
 
-	onMount(() => {
-		const lowlight = createLowlight(common);
+	const lowlight = createLowlight(common);
+
+	$effect(() => {
 		try {
 			const tree = lowlight.highlight(language, code);
 			html = toHtml(tree as never);
