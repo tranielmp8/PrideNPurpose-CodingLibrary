@@ -43,6 +43,12 @@
 	let dropTargetId = $state<string | null>(null);
 	let draggingOverRoot = $state(false);
 	let moveNodeForm = $state<HTMLFormElement | undefined>();
+	let guideLayout = $state<HTMLDivElement | undefined>();
+	let treePanelWidth = $state(288);
+	let resizingTreePanel = $state(false);
+
+	const minTreePanelWidth = 288;
+	const maxTreePanelWidth = 640;
 
 	const selectedNode = $derived(selectedNodeId ? nodeMap.get(selectedNodeId) ?? null : null);
 	const descendantMap = $derived.by(() => {
@@ -174,13 +180,54 @@
 		if (!nodeId || !canDropInto(nodeId, null)) return;
 		submitMove(nodeId, null);
 	}
+
+	function clampTreePanelWidth(width: number): number {
+		return Math.min(maxTreePanelWidth, Math.max(minTreePanelWidth, Math.round(width)));
+	}
+
+	function handleTreeResizeStart(event: PointerEvent) {
+		resizingTreePanel = true;
+		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+		event.preventDefault();
+	}
+
+	function handleTreeResizeMove(event: PointerEvent) {
+		if (!resizingTreePanel) return;
+		const layoutLeft = guideLayout?.getBoundingClientRect().left ?? 0;
+		treePanelWidth = clampTreePanelWidth(event.clientX - layoutLeft);
+	}
+
+	function handleTreeResizeEnd(event: PointerEvent) {
+		if (!resizingTreePanel) return;
+		resizingTreePanel = false;
+		(event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+	}
+
+	function handleTreeResizeKeydown(event: KeyboardEvent) {
+		if (event.key === 'ArrowLeft') {
+			treePanelWidth = clampTreePanelWidth(treePanelWidth - 24);
+			event.preventDefault();
+		} else if (event.key === 'ArrowRight') {
+			treePanelWidth = clampTreePanelWidth(treePanelWidth + 24);
+			event.preventDefault();
+		} else if (event.key === 'Home') {
+			treePanelWidth = minTreePanelWidth;
+			event.preventDefault();
+		} else if (event.key === 'End') {
+			treePanelWidth = maxTreePanelWidth;
+			event.preventDefault();
+		}
+	}
 </script>
 
 <!-- Full-height split layout -->
-<div class="flex h-full overflow-hidden">
+<div bind:this={guideLayout} class="flex h-full overflow-hidden {resizingTreePanel ? 'select-none' : ''}">
 
 	<!-- ── File Tree Panel ──────────────────────────────────── -->
-	<div class="flex w-72 shrink-0 flex-col border-r border-gray-200 bg-white dark:border-[#1e1e1e] dark:bg-[#111111]">
+	<div
+		class="relative flex shrink-0 flex-col border-r border-gray-200 bg-white dark:border-[#1e1e1e] dark:bg-[#111111]"
+		style="width: {treePanelWidth}px"
+	>
 		<!-- Tree header -->
 		<div class="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-[#1e1e1e]">
 			<span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Folders + Files</span>
@@ -202,7 +249,7 @@
 		<div
 			role="tree"
 			tabindex="0"
-			class="flex-1 overflow-y-auto py-2 transition-colors {draggingOverRoot ? 'bg-orange-50/60 dark:bg-orange-500/10' : ''}"
+			class="tree flex-1 overflow-auto py-2 transition-colors {draggingOverRoot ? 'bg-orange-50/60 dark:bg-orange-500/10' : ''}"
 			ondragover={handleRootDragOver}
 			ondragleave={handleRootDragLeave}
 			ondrop={handleRootDrop}
@@ -331,6 +378,17 @@
 				<p class="px-4 pb-3 text-[11px] text-slate-400">Drag onto a folder to nest it, or drop in empty space to move it to root.</p>
 			{/if}
 		</div>
+		<button
+			type="button"
+			aria-label="Resize file tree"
+			title="Resize file tree"
+			onpointerdown={handleTreeResizeStart}
+			onpointermove={handleTreeResizeMove}
+			onpointerup={handleTreeResizeEnd}
+			onpointercancel={handleTreeResizeEnd}
+			onkeydown={handleTreeResizeKeydown}
+			class="absolute inset-y-0 right-0 w-2 translate-x-1 cursor-col-resize touch-none border-0 bg-transparent p-0 transition-colors hover:bg-orange-400/30 focus-visible:bg-orange-400/30 focus-visible:outline-none {resizingTreePanel ? 'bg-orange-400/40' : ''}"
+		></button>
 	</div>
 
 	<!-- ── Content Panel ─────────────────────────────────────── -->
