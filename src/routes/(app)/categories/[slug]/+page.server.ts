@@ -38,7 +38,7 @@ export const load: PageServerLoad = async (event) => {
 				updatedAt: notes.updatedAt
 			})
 			.from(notes)
-			.where(and(eq(notes.categoryId, category.id), eq(notes.userId, userId)))
+			.where(and(eq(notes.categoryId, category.id), eq(notes.userId, userId), eq(notes.isArchived, false)))
 			.orderBy(sql`${notes.isPinned} desc`, desc(notes.updatedAt))
 	]);
 
@@ -55,6 +55,22 @@ export const actions: Actions = {
 		const template = formData.get('template')?.toString() || 'blank';
 
 		if (!categoryId) return fail(400, { message: 'Category is required.' });
+
+		const [category] = await db
+			.select({ id: categories.id })
+			.from(categories)
+			.where(and(eq(categories.id, categoryId), eq(categories.userId, userId)))
+			.limit(1);
+		if (!category) return fail(403, { message: 'Category not found.' });
+
+		if (folderId) {
+			const [folder] = await db
+				.select({ id: folders.id })
+				.from(folders)
+				.where(and(eq(folders.id, folderId), eq(folders.categoryId, categoryId), eq(folders.userId, userId)))
+				.limit(1);
+			if (!folder) return fail(400, { message: 'Folder not found.' });
+		}
 
 		const slug = `${slugify(title)}-${Date.now()}`;
 		const contentJson = getTemplateContent(template);
@@ -75,6 +91,22 @@ export const actions: Actions = {
 		const parentFolderId = formData.get('parentFolderId')?.toString() || null;
 
 		if (!name) return fail(400, { message: 'Folder name is required.' });
+
+		const [category] = await db
+			.select({ id: categories.id })
+			.from(categories)
+			.where(and(eq(categories.id, categoryId), eq(categories.userId, userId)))
+			.limit(1);
+		if (!category) return fail(403, { message: 'Category not found.' });
+
+		if (parentFolderId) {
+			const [parent] = await db
+				.select({ id: folders.id })
+				.from(folders)
+				.where(and(eq(folders.id, parentFolderId), eq(folders.categoryId, categoryId), eq(folders.userId, userId)))
+				.limit(1);
+			if (!parent) return fail(400, { message: 'Parent folder not found.' });
+		}
 
 		await db.insert(folders).values({ userId, categoryId, name, parentFolderId });
 	},

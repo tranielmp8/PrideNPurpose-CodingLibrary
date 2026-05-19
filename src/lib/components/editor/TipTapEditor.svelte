@@ -9,6 +9,7 @@
 	import Link from '@tiptap/extension-link';
 	import { common, createLowlight } from 'lowlight';
 	import { NoteLink } from './NoteLink';
+	import { TextColor } from './TextColor';
 
 	let {
 		content = '',
@@ -34,6 +35,9 @@
 	let isTask = $state(false);
 	let isBlockquote = $state(false);
 	let isCodeBlock = $state(false);
+	let currentColor = $state('#334155');
+
+	const textColors = ['#334155', '#f97316', '#ef4444', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#a855f7'];
 
 	// Note-link autocomplete state
 	let suggestOpen = $state(false);
@@ -58,6 +62,7 @@
 		isTask = editor.isActive('taskList');
 		isBlockquote = editor.isActive('blockquote');
 		isCodeBlock = editor.isActive('codeBlock');
+		currentColor = (editor.getAttributes('textColor').color as string | undefined) ?? '#334155';
 	}
 
 	function injectCopyButtons() {
@@ -156,6 +161,7 @@
 				TaskList,
 				TaskItem.configure({ nested: true }),
 				Link.configure({ openOnClick: false }),
+				TextColor,
 				NoteLink
 			],
 			content: content ? JSON.parse(content) : '',
@@ -187,12 +193,22 @@
 		if (!url) return;
 		editor?.chain().focus().setLink({ href: url }).run();
 	}
+
+	function setTextColor(color: string) {
+		currentColor = color;
+		editor?.chain().focus().setMark('textColor', { color }).run();
+	}
+
+	function clearTextColor() {
+		currentColor = '#334155';
+		editor?.chain().focus().unsetMark('textColor').run();
+	}
 </script>
 
 <div class="relative flex flex-col">
 	<!-- Toolbar -->
 	<div
-		class="flex flex-wrap items-center gap-0.5 border-b border-gray-400 dark:border-[#2d2d2d] bg-gray-50 dark:bg-[#181818] px-3 py-2"
+		class="sticky top-0 z-20 flex flex-wrap items-center gap-0.5 border-b border-gray-400 dark:border-[#2d2d2d] bg-gray-50 dark:bg-[#181818] px-3 py-2 shadow-sm"
 	>
 		<!-- Headings -->
 		<button
@@ -241,6 +257,41 @@
 			class="rounded px-2.5 py-1.5 font-mono text-sm transition-colors {btn(isCode)}"
 			title="Inline code"
 		>`c`</button>
+
+		<div class="mx-1.5 h-5 w-px bg-gray-300 dark:bg-[#282828]"></div>
+
+		<!-- Text color -->
+		<div class="flex items-center gap-1 rounded px-1 py-0.5" title="Text color">
+			<span class="px-1 text-sm font-bold text-slate-500 dark:text-slate-400">A</span>
+			{#each textColors as color}
+				<button
+					type="button"
+					onclick={() => setTextColor(color)}
+					class="h-6 w-6 rounded border border-slate-300 transition-transform hover:scale-110 dark:border-[#333333] {currentColor === color ? 'ring-2 ring-orange-500 ring-offset-1 ring-offset-gray-50 dark:ring-offset-[#181818]' : ''}"
+					style="background-color: {color};"
+					aria-label="Set text color {color}"
+				></button>
+			{/each}
+			<label
+				class="relative flex h-7 w-7 cursor-pointer items-center justify-center rounded border border-slate-300 text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-200 dark:border-[#333333] dark:text-slate-400 dark:hover:bg-[#282828]"
+				title="Custom text color"
+			>
+				<input
+					type="color"
+					value={currentColor}
+					oninput={(event) => setTextColor(event.currentTarget.value)}
+					class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+					aria-label="Custom text color"
+				/>
+				+
+			</label>
+			<button
+				type="button"
+				onclick={clearTextColor}
+				class="rounded px-2 py-1.5 text-xs transition-colors {btn(false)}"
+				title="Clear text color"
+			>Clear</button>
+		</div>
 
 		<div class="mx-1.5 h-5 w-px bg-gray-300 dark:bg-[#282828]"></div>
 
@@ -368,6 +419,9 @@
 	:global(.dark .tiptap-editor .ProseMirror strong) { color: #f1f5f9; }
 	:global(.dark .tiptap-editor .ProseMirror em) { color: #e2e8f0; }
 	:global(.dark .tiptap-editor .ProseMirror s) { color: #94a3b8; }
+	:global(.tiptap-editor .ProseMirror span[style*="color"] strong),
+	:global(.tiptap-editor .ProseMirror span[style*="color"] em),
+	:global(.tiptap-editor .ProseMirror span[style*="color"] s) { color: inherit; }
 
 	/* Lists */
 	:global(.tiptap-editor .ProseMirror ul) { list-style: disc; padding-left: 1.5rem; color: #334155; margin: 0.5rem 0; }

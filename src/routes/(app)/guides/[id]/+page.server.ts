@@ -4,6 +4,26 @@ import { db } from '$lib/server/db';
 import { guides, guideNodes, categories } from '$lib/server/db/schema';
 import { eq, and } from 'drizzle-orm';
 
+function collectDescendantIds(
+	nodes: Array<{ id: string; parentId: string | null }>,
+	rootId: string
+): Set<string> {
+	const descendants = new Set<string>();
+	const stack = [rootId];
+
+	while (stack.length > 0) {
+		const currentId = stack.pop()!;
+		for (const node of nodes) {
+			if (node.parentId === currentId && !descendants.has(node.id)) {
+				descendants.add(node.id);
+				stack.push(node.id);
+			}
+		}
+	}
+
+	return descendants;
+}
+
 export const load: PageServerLoad = async (event) => {
 	const userId = event.locals.user!.id;
 	const { id } = event.params;
@@ -90,6 +110,71 @@ export const actions: Actions = {
 				...(explanation !== undefined && { explanation: explanation || null }),
 				...(codeContent !== undefined && { codeContent: codeContent || null }),
 				...(codeLanguage !== undefined && { codeLanguage })
+			})
+			.where(and(eq(guideNodes.id, nodeId), eq(guideNodes.guideId, guideId)));
+
+		return { success: true };
+	},
+
+	moveNode: async (event) => {
+		const userId = event.locals.user!.id;
+		const { id: guideId } = event.params;
+		const formData = await event.request.formData();
+
+		const nodeId = formData.get('nodeId')?.toString() ?? '';
+		const destinationParentId = formData.get('destinationParentId')?.toString() || null;
+
+		if (!nodeId) return fail(400, { message: 'Node is required.' });
+
+		const [guide] = await db
+			.select({ id: guides.id })
+			.from(guides)
+			.where(and(eq(guides.id, guideId), eq(guides.userId, userId)))
+			.limit(1);
+		if (!guide) return fail(403);
+
+		const nodes = await db
+			.select({
+				id: guideNodes.id,
+				parentId: guideNodes.parentId,
+				type: guideNodes.type,
+				sortOrder: guideNodes.sortOrder
+			})
+			.from(guideNodes)
+			.where(eq(guideNodes.guideId, guideId));
+
+		const node = nodes.find((entry) => entry.id === nodeId);
+		if (!node) return fail(404, { message: 'Node not found.' });
+
+		if (destinationParentId === nodeId) {
+			return fail(400, { message: 'A node cannot be moved into itself.' });
+		}
+
+		if (destinationParentId) {
+			const destination = nodes.find((entry) => entry.id === destinationParentId);
+			if (!destination) return fail(404, { message: 'Destination folder not found.' });
+			if (destination.type !== 'directory') {
+				return fail(400, { message: 'Items can only be dropped into folders.' });
+			}
+
+			const descendants = collectDescendantIds(nodes, nodeId);
+			if (descendants.has(destinationParentId)) {
+				return fail(400, { message: 'A folder cannot be moved into one of its children.' });
+			}
+		}
+
+		if (node.parentId === destinationParentId) {
+			return { success: true };
+		}
+
+		const siblings = nodes.filter((entry) => entry.parentId === destinationParentId);
+		const nextSortOrder = siblings.reduce((max, sibling) => Math.max(max, sibling.sortOrder), -1) + 1;
+
+		await db
+			.update(guideNodes)
+			.set({
+				parentId: destinationParentId,
+				sortOrder: nextSortOrder
 			})
 			.where(and(eq(guideNodes.id, nodeId), eq(guideNodes.guideId, guideId)));
 

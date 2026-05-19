@@ -1,10 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import type { User } from 'better-auth/minimal';
 	import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
 
-	let { user, dueCount = 0 }: { user: User; dueCount?: number } = $props();
+	let { user, dueCount = 0 }: { user: App.User; dueCount?: number } = $props();
 
 	const navItems = [
 		{ href: '/dashboard', label: 'Dashboard', icon: '⊞' },

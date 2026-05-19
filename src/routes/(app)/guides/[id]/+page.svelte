@@ -39,8 +39,29 @@
 	let addingType = $state<'file' | 'directory'>('file');
 	let editingGuideTitle = $state(false);
 	let confirmDelete = $state<string | null>(null);
+	let draggingNodeId = $state<string | null>(null);
+	let dropTargetId = $state<string | null>(null);
+	let draggingOverRoot = $state(false);
+	let moveNodeForm = $state<HTMLFormElement | undefined>();
 
 	const selectedNode = $derived(selectedNodeId ? nodeMap.get(selectedNodeId) ?? null : null);
+	const descendantMap = $derived.by(() => {
+		const map = new Map<string, Set<string>>();
+		for (const node of data.nodes) {
+			const descendants = new Set<string>();
+			const stack = data.nodes.filter((entry) => entry.parentId === node.id).map((entry) => entry.id);
+			while (stack.length > 0) {
+				const currentId = stack.pop()!;
+				if (descendants.has(currentId)) continue;
+				descendants.add(currentId);
+				for (const child of data.nodes) {
+					if (child.parentId === currentId) stack.push(child.id);
+				}
+			}
+			map.set(node.id, descendants);
+		}
+		return map;
+	});
 
 	function getPath(nodeId: string): string {
 		const parts: string[] = [];
@@ -79,6 +100,80 @@
 			addingTo = undefined;
 		}
 	});
+
+	function canDropInto(nodeId: string, destinationId: string | null): boolean {
+		if (nodeId === destinationId) return false;
+		if (!destinationId) return true;
+		const destination = nodeMap.get(destinationId);
+		if (!destination || destination.type !== 'directory') return false;
+		return !descendantMap.get(nodeId)?.has(destinationId);
+	}
+
+	function handleDragStart(event: DragEvent, nodeId: string) {
+		draggingNodeId = nodeId;
+		if (event.dataTransfer) {
+			event.dataTransfer.effectAllowed = 'move';
+			event.dataTransfer.setData('text/plain', nodeId);
+		}
+	}
+
+	function handleDragEnd() {
+		draggingNodeId = null;
+		dropTargetId = null;
+		draggingOverRoot = false;
+	}
+
+	function handleDragOverFolder(event: DragEvent, folderId: string) {
+		if (!draggingNodeId || !canDropInto(draggingNodeId, folderId)) return;
+		event.preventDefault();
+		if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+		dropTargetId = folderId;
+		draggingOverRoot = false;
+	}
+
+	function handleDragLeaveFolder(folderId: string) {
+		if (dropTargetId === folderId) dropTargetId = null;
+	}
+
+	function submitMove(nodeId: string, destinationParentId: string | null) {
+		if (!moveNodeForm) return;
+		const nodeIdInput = moveNodeForm.elements.namedItem('nodeId');
+		const destinationInput = moveNodeForm.elements.namedItem('destinationParentId');
+		if (!(nodeIdInput instanceof HTMLInputElement) || !(destinationInput instanceof HTMLInputElement)) return;
+		nodeIdInput.value = nodeId;
+		destinationInput.value = destinationParentId ?? '';
+		moveNodeForm.requestSubmit();
+	}
+
+	function handleDropIntoFolder(event: DragEvent, folderId: string) {
+		event.preventDefault();
+		const nodeId = draggingNodeId;
+		dropTargetId = null;
+		draggingOverRoot = false;
+		if (!nodeId || !canDropInto(nodeId, folderId)) return;
+		submitMove(nodeId, folderId);
+	}
+
+	function handleRootDragOver(event: DragEvent) {
+		if (!draggingNodeId || !canDropInto(draggingNodeId, null)) return;
+		event.preventDefault();
+		if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+		draggingOverRoot = true;
+		dropTargetId = null;
+	}
+
+	function handleRootDragLeave() {
+		draggingOverRoot = false;
+	}
+
+	function handleRootDrop(event: DragEvent) {
+		event.preventDefault();
+		const nodeId = draggingNodeId;
+		draggingOverRoot = false;
+		dropTargetId = null;
+		if (!nodeId || !canDropInto(nodeId, null)) return;
+		submitMove(nodeId, null);
+	}
 </script>
 
 <!-- Full-height split layout -->
@@ -104,13 +199,34 @@
 		</div>
 
 		<!-- Tree -->
-		<div class="flex-1 overflow-y-auto py-2">
+		<div
+			role="tree"
+			tabindex="0"
+			class="flex-1 overflow-y-auto py-2 transition-colors {draggingOverRoot ? 'bg-orange-50/60 dark:bg-orange-500/10' : ''}"
+			ondragover={handleRootDragOver}
+			ondragleave={handleRootDragLeave}
+			ondrop={handleRootDrop}
+		>
 			{#snippet treeNode(node: TreeNode, depth: number)}
 				<div>
 					<div
-						class="group flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-sm transition-colors {selectedNodeId === node.id
+						role="treeitem"
+						tabindex="-1"
+						aria-selected={selectedNodeId === node.id}
+						aria-expanded={node.type === 'directory' ? !!expandedDirs[node.id] : undefined}
+						draggable="true"
+						ondragstart={(event) => handleDragStart(event, node.id)}
+						ondragend={handleDragEnd}
+						ondragover={node.type === 'directory' ? (event) => handleDragOverFolder(event, node.id) : undefined}
+						ondragleave={node.type === 'directory' ? () => handleDragLeaveFolder(node.id) : undefined}
+						ondrop={node.type === 'directory' ? (event) => handleDropIntoFolder(event, node.id) : undefined}
+						class="group flex cursor-pointer items-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm transition-colors {selectedNodeId === node.id
 							? 'bg-orange-50 text-orange-600 dark:bg-orange-500/15 dark:text-orange-400'
-							: 'text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-white/5'}"
+							: 'text-slate-600 hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-white/5'} {draggingNodeId === node.id
+							? 'opacity-50'
+							: ''} {dropTargetId === node.id
+							? 'border-orange-300 bg-orange-50 dark:border-orange-400/50 dark:bg-orange-500/10'
+							: ''}"
 						style="padding-left: {12 + depth * 16}px"
 					>
 						{#if node.type === 'directory'}
@@ -211,6 +327,8 @@
 
 			{#if tree.length === 0 && addingTo === undefined}
 				<p class="px-4 py-6 text-center text-xs text-slate-500">No files yet.<br />Use the + buttons above.</p>
+			{:else if draggingNodeId}
+				<p class="px-4 pb-3 text-[11px] text-slate-400">Drag onto a folder to nest it, or drop in empty space to move it to root.</p>
 			{/if}
 		</div>
 	</div>
@@ -432,6 +550,20 @@
 		</div>
 	</div>
 </div>
+
+<form
+	method="post"
+	action="?/moveNode"
+	bind:this={moveNodeForm}
+	use:enhance={() => async ({ update }) => {
+		await update({ reset: false });
+		handleDragEnd();
+	}}
+	class="hidden"
+>
+	<input type="hidden" name="nodeId" value="" />
+	<input type="hidden" name="destinationParentId" value="" />
+</form>
 
 <!-- Delete confirmation form (hidden, triggered programmatically) -->
 {#if confirmDelete}

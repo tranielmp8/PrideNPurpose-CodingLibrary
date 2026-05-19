@@ -16,6 +16,7 @@
 	let newNoteTitle = $state('');
 	let newFolderName = $state('');
 	let selectedTemplate = $state('blank');
+	let selectedFolderId = $state('');
 
 	const templateOptions = [
 		{ id: 'blank', icon: '📄', label: 'Blank' },
@@ -109,7 +110,12 @@
 		return roots;
 	}
 	const folderTree = $derived(buildFolderTree(data.folders));
+	function flattenFolders(nodes: Folder[], depth = 0): Array<Folder & { depth: number }> {
+		return nodes.flatMap((folder) => [{ ...folder, depth }, ...flattenFolders(folder.children, depth + 1)]);
+	}
+	const folderOptions = $derived(flattenFolders(folderTree));
 	let addingSubfolderTo = $state<string | null>(null);
+	let addingNoteToFolder = $state<string | null>(null);
 </script>
 
 <div class="mx-auto max-w-4xl px-8 py-10">
@@ -280,6 +286,19 @@
 					autofocus
 					class="flex-1 rounded-lg border border-[#2d2d2d] bg-[#1e1e1e] px-4 py-2 text-white placeholder-slate-500 focus:border-orange-500 focus:outline-none"
 				/>
+				{#if folderOptions.length > 0}
+					<select
+						name="folderId"
+						bind:value={selectedFolderId}
+						class="max-w-52 rounded-lg border border-[#2d2d2d] bg-[#1e1e1e] px-3 py-2 text-sm text-white focus:border-orange-500 focus:outline-none"
+						title="Note location"
+					>
+						<option value="">Unsorted</option>
+						{#each folderOptions as folder}
+							<option value={folder.id}>{'  '.repeat(folder.depth)}{folder.name}</option>
+						{/each}
+					</select>
+				{/if}
 				<button
 					type="submit"
 					class="rounded-lg bg-gradient-to-r from-orange-500 to-red-500 px-4 py-2 text-sm font-semibold text-white hover:from-orange-600 hover:to-red-600"
@@ -345,7 +364,13 @@
 				<span class="ml-auto flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
 					<button
 						type="button"
-						onclick={(e) => { e.preventDefault(); addingSubfolderTo = addingSubfolderTo === folder.id ? null : folder.id; }}
+						onclick={(e) => { e.preventDefault(); addingNoteToFolder = addingNoteToFolder === folder.id ? null : folder.id; addingSubfolderTo = null; }}
+						class="rounded px-2 py-0.5 text-xs text-slate-400 hover:bg-orange-500/10 hover:text-orange-400 transition-colors"
+						title="Add note"
+					>+ note</button>
+					<button
+						type="button"
+						onclick={(e) => { e.preventDefault(); addingSubfolderTo = addingSubfolderTo === folder.id ? null : folder.id; addingNoteToFolder = null; }}
 						class="rounded px-2 py-0.5 text-xs text-slate-400 hover:bg-orange-500/10 hover:text-orange-400 transition-colors"
 						title="Add subfolder"
 					>+ subfolder</button>
@@ -363,6 +388,42 @@
 					{folderNotes.length + folder.children.reduce((s, c) => s + notesInFolder(c.id).length, 0)} notes
 				</span>
 			</summary>
+
+			<!-- Note creation form -->
+			{#if addingNoteToFolder === folder.id}
+				<form
+					method="post"
+					action="?/createNote"
+					use:enhance={() => async ({ update }) => { addingNoteToFolder = null; await update(); }}
+					class="mx-4 mb-2 mt-1 space-y-2 rounded-lg border border-orange-500/30 bg-orange-500/5 px-3 py-2"
+				>
+					<input type="hidden" name="categoryId" value={data.category.id} />
+					<input type="hidden" name="folderId" value={folder.id} />
+					<input type="hidden" name="template" value={selectedTemplate} />
+					<div class="flex items-center gap-2">
+						<input
+							type="text"
+							name="title"
+							placeholder="Note title..."
+							autofocus
+							class="flex-1 bg-transparent text-sm text-white placeholder-slate-500 focus:outline-none"
+						/>
+						<button type="submit" class="text-xs font-medium text-orange-400 hover:text-orange-300">Create</button>
+						<button type="button" onclick={() => (addingNoteToFolder = null)} class="text-slate-500 hover:text-slate-300 text-xs">âœ•</button>
+					</div>
+					<div class="flex flex-wrap gap-1.5">
+						{#each templateOptions as t}
+							<button
+								type="button"
+								onclick={() => (selectedTemplate = t.id)}
+								class="rounded px-2 py-0.5 text-[11px] font-medium transition-colors {selectedTemplate === t.id
+									? 'bg-orange-500 text-white'
+									: 'bg-[#1e1e1e] text-slate-400 hover:text-slate-200'}"
+							>{t.icon} {t.label}</button>
+						{/each}
+					</div>
+				</form>
+			{/if}
 
 			<!-- Subfolder creation form -->
 			{#if addingSubfolderTo === folder.id}

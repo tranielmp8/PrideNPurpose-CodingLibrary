@@ -1,6 +1,14 @@
 type Mark = { type: string; attrs?: Record<string, unknown> };
 type Node = { type: string; attrs?: Record<string, unknown>; content?: Node[]; text?: string; marks?: Mark[] };
 
+function safeColor(value: unknown): string | null {
+	if (typeof value !== 'string') return null;
+	const color = value.trim();
+	if (/^#[0-9a-fA-F]{3,8}$/.test(color)) return color;
+	if (/^(rgb|rgba|hsl|hsla)\([0-9\s,%.+-]+\)$/.test(color)) return color;
+	return null;
+}
+
 function applyMarks(text: string, marks: Mark[] = []): string {
 	let out = text;
 	for (const m of marks) {
@@ -10,6 +18,11 @@ function applyMarks(text: string, marks: Mark[] = []): string {
 			case 'code': out = `\`${out}\``; break;
 			case 'strike': out = `~~${out}~~`; break;
 			case 'link': out = `[${out}](${m.attrs?.href ?? ''})`; break;
+			case 'textColor': {
+				const color = safeColor(m.attrs?.color);
+				if (color) out = `<span style="color: ${color}">${out}</span>`;
+				break;
+			}
 		}
 	}
 	return out;
